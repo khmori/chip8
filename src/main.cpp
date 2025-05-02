@@ -1,8 +1,10 @@
 #include "cpu.h"
+#include <atomic>
 #include <iostream>
 
-SDL_Window* window;
-SDL_Renderer* renderer;
+SDL_Window* window = NULL;
+SDL_Renderer* renderer = NULL;
+int scale = 10;
 
 void initSDL();
 void draw(const bool display[64*32]);
@@ -22,7 +24,7 @@ int main() {
             cpu.drawFlag = false;
         }
 
-        SDL_Delay(16); // 60hz
+        SDL_Delay(16); 
     }
 
     SDL_Quit();
@@ -31,12 +33,11 @@ int main() {
 
 void initSDL() {
     SDL_Init(SDL_INIT_EVERYTHING);
-    window = SDL_CreateWindow("screen", 100, 100, 64, 32, SDL_WINDOW_SHOWN);
+    window = SDL_CreateWindow("screen", 100, 100, 640, 320, SDL_WINDOW_SHOWN);
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 }
 
-
-void draw(const bool display[64*32]) {
+void draw_old(const bool display[64*32]) {
     SDL_Surface* winSurface = SDL_GetWindowSurface(window);
     SDL_LockSurface(winSurface);
 
@@ -58,4 +59,42 @@ void draw(const bool display[64*32]) {
 
     SDL_UnlockSurface(winSurface);
     SDL_UpdateWindowSurface(window);
+}
+
+void draw(const bool display[64*32]) {   
+    window = SDL_CreateWindow("screen", 100, 100, 640, 320, SDL_WINDOW_SHOWN);
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+
+    SDL_SetRenderDrawColor( renderer, 0, 0, 0, 255 );
+    SDL_RenderClear( renderer );
+    
+    SDL_SetRenderDrawColor( renderer, 255, 255, 255, 255 );
+
+    for (int x=0; x<64; x++) {
+        for (int y=0; y<32; y++) {
+            bool pixel = display[y*64 + x];
+            
+            if (pixel) {
+                SDL_Rect rect;
+                rect.h = scale;
+                rect.w = scale;
+                rect.x = x * scale;
+                rect.y = y * scale;
+                SDL_RenderDrawRect(renderer, &rect);
+            }
+
+
+        }
+    }
+
+    // render the rect to the screen
+    SDL_RenderPresent(renderer);
+
+    // wait for 1 sec
+    SDL_Delay( 1000 );
+
+    // SDL_DestroyWindow(window);
+    // SDL_Quit();
+
+    return;
 }
