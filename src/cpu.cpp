@@ -1,5 +1,6 @@
 #include "cpu.h"
 #include <iomanip>
+#include <cstdlib>
 
 CPU::CPU() {
     initialize();
@@ -50,6 +51,10 @@ void CPU::initialize() {
 
 
 void CPU::emulateCycle() {
+    if (waitingForKey) {
+        return;
+    }
+
     // FETCH
     // combine two bytes into 16-bit instruction
     opcode = (memory[PC] << 8) | (memory[PC+1]);
@@ -68,12 +73,12 @@ void CPU::emulateCycle() {
     uint16_t NNN = (opcode & 0x0FFF);       // second, third, fourth nibbles (12 bits)
 
     // check PC, opcode, SP, registers
-    printf("%.4X %.4X %.2X ", PC, opcode, SP);
-    for (int i = 0; i < 15; i++)
-    {
-        printf("%.2X ", V[i]);
-    }
-    printf("\n");
+    // printf("%.4X %.4X %.2X ", PC, opcode, SP);
+    // for (int i = 0; i < 15; i++)
+    // {
+    //     printf("%.2X ", V[i]);
+    // }
+    // printf("\n");
 
     switch (iCd) {
         case 0x0:
@@ -149,6 +154,72 @@ void CPU::emulateCycle() {
             PC += 2;
             break;
 
+        case 0x8:
+            switch (N) {
+                case 0x0:
+                    V[X] = V[Y];
+                    break;
+
+                case 0x1: // OR
+                    V[X] = V[X] || V[Y];
+                    break;
+                case 0x2: // AND
+                    V[X] = V[X] & V[Y];
+                    break;
+                case 0x3: // XOR
+                    V[X] = V[X] || V[Y] & !(V[X] & V[Y]); 
+                    break;
+                case 0x4:
+                    V[X] = V[X] + V[Y];
+                    if (V[X] > 255) {
+                        V[0xF] = 1;
+                    } else {
+                        V[0xF] = 0;
+                    }
+                    
+                    break;
+                case 0x5: // V[X] - V[Y]
+                    V[X] = V[X] - V[Y];
+                    if (V[X] > 0) {
+                        V[0xF] = 1;
+                    } else {
+                        V[0xF] = 0;
+                    }
+
+                    break;
+                case 0x6:
+                    V[X] = V[Y];
+                    if ((V[X] & 1) == 1) {
+                        V[0xF] = 1;
+                    } else {
+                        V[0xF] = 0;
+                    }
+
+                    V[X] = V[X] >> 1;
+
+                    break;
+                case 0x7: // V[Y] - V[X]
+                    V[X] = V[X] - V[Y];
+                    if (V[X] > 0) {
+                        V[0xF] = 1;
+                    } else {
+                        V[0xF] = 0;
+                    }
+                    break;
+                
+                case 0xE:
+                    V[X] = V[Y];
+                    if ((V[X] & 1) == 1) {
+                        V[0xF] = 1;
+                    } else {
+                        V[0xF] = 0;
+                    }
+
+                    V[X] = V[X] << 1;
+                    break;
+
+            }
+
         case 0x9:
             PC += 2;
             if (V[X] != V[Y]) {
@@ -161,6 +232,18 @@ void CPU::emulateCycle() {
             PC += 2;
             break;
 
+        case 0xB:
+            // COSMAC VIP interpreter
+            PC = NNN + V[0];
+            break;
+
+        case 0xC: { 
+            int r = rand() % 101;
+            V[X] = r & NN;
+            break;
+        }
+
+            
         case 0xD: {
             uint8_t x = V[X]%64;
             uint8_t y = V[Y]%32;
@@ -202,6 +285,49 @@ void CPU::emulateCycle() {
             break;
         }
 
+        case 0xE: 
+            switch (NN) {
+                case 0x9E: {
+                    if (keypad[V[X]]) {
+                        PC += 2;
+                    }
+                    break;
+                }
+                
+                case 0xA1: {
+                    if (!keypad[V[X]]) {
+                        PC += 2;
+                    }
+                    break;
+                }
+            }
+            break;
+        
+        case 0xF:
+            switch (NN) {
+                case 0x07:
+                    V[X] = delayTimer;
+                    break;
+
+                case 0x15:
+                    delayTimer = V[X];
+                    break;
+                
+                case 0x18:
+                    soundTimer = V[X];
+                    break;
+
+                case 0x1E:
+                    I += V[X];
+                    break;
+
+                case 0x0A:
+                    PC -= 2;
+                    waitingForKey = true;
+
+                    break;
+            }
+
         default:
             cout << "unknown opcode: 0x" << hex << opcode << endl;
             break;
@@ -222,4 +348,49 @@ void CPU::loadROM(string romPath) {
 
     rom.close();
     cout << "loaded " << index - 0x200 << " bytes into memory\n";
+}
+
+bool CPU::isKeyPressed() {
+    for (int i=0; i<sizeof(keypad); i++) {
+        if (keypad[i]) {
+            return true;
+        }
+    }
+    return false;
+}
+
+uint8_t CPU::getDelayTimer() {
+    return delayTimer;
+}
+
+uint8_t CPU::getSoundTimer() {
+    return soundTimer;
+}
+
+void CPU::setKeypadValue(int target, int value) {  
+    keypad[target] = value; 
+}
+
+void CPU::setDisplayValue(int target, int value) {
+    display[target] = value;
+}
+
+bool CPU::getDisplayValue(int target) {
+    return display[target];
+}
+
+void CPU::setDrawFlag(bool value) {
+    drawFlag = value;
+}
+
+bool CPU::getDrawFlag() {
+    return drawFlag;
+}
+
+bool CPU::setWaitingForKey(bool value) {
+    waitingForKey = value;
+}
+
+bool CPU::getWaitingForKey() {
+    return waitingForKey;
 }
