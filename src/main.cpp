@@ -35,7 +35,7 @@ void handleKeyEvent(SDL_Event event, CPU& cpu);
 int main() {
     CPU cpu;
     cpu.initialize();
-    cpu.loadROM("../roms/6-keypad.ch8");
+    cpu.loadROM("../roms/pong.ch8");
 
     initSDL();
 

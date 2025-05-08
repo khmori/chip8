@@ -174,14 +174,17 @@ void CPU::emulateCycle() {
 
                 case 0x1: // OR
                     V[X] = V[X] | V[Y];
+                    V[0xF] = 0;
                     break;
 
                 case 0x2: // AND
                     V[X] = V[X] & V[Y];
+                    V[0xF] = 0;
                     break;
 
                 case 0x3: // XOR
                     V[X] = V[X] ^ V[Y];
+                    V[0xF] = 0;
                     break;
 
                 case 0x4: { // V[X] + V[Y]
