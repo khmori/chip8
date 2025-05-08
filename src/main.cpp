@@ -1,11 +1,14 @@
 #include "cpu.h"
 #include <SDL2/SDL_events.h>
-#include <atomic>
+#include <SDL2/SDL_stdinc.h>
+#include <SDL2/SDL_timer.h>
 #include <iostream>
+
+const int SCALE = 10;
 
 SDL_Window* window = NULL;
 SDL_Renderer* renderer = NULL;
-int scale = 10;
+Uint32 lastTimerUpdate; // number of milliseconds since initialization
 
 void initSDL();
 void draw(CPU& cpu);
@@ -14,7 +17,7 @@ void handleKeyEvent(SDL_Event event, CPU& cpu);
 int main() {
     CPU cpu;
     cpu.initialize();
-    cpu.loadROM("../roms/3-corax+.ch8");
+    cpu.loadROM("../roms/4-flags.ch8");
 
     initSDL();
 
@@ -22,16 +25,27 @@ int main() {
         cpu.emulateCycle();
         SDL_Event event;
 
+        // draw to screen
         if (cpu.getDrawFlag()) {
             draw(cpu);
             cpu.setDrawFlag(false);
         }
         
+        // handle key inputs
         while(SDL_PollEvent(&event)) {
             handleKeyEvent(event, cpu);
         }
 
-        SDL_Delay(1000/cpu.getDelayTimer()); 
+        // handle timers
+        // if 1/60 of a second (1000/60 milliseconds) has passed, update timers
+        // (timers are decremented 60 times per second)
+        Uint32 now = SDL_GetTicks();
+        if (now - lastTimerUpdate >= 1000/60) {
+            cpu.updateTimers();
+            lastTimerUpdate = now;
+        }
+
+        SDL_Delay(1); 
     }
 
     SDL_Quit();
@@ -42,12 +56,10 @@ void initSDL() {
     SDL_Init(SDL_INIT_EVERYTHING);
     window = SDL_CreateWindow("screen", 100, 100, 640, 320, SDL_WINDOW_SHOWN);
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    lastTimerUpdate = SDL_GetTicks();
 }
 
 void draw(CPU& cpu) {   
-    // window = SDL_CreateWindow("screen", 100, 100, 640, 320, SDL_WINDOW_SHOWN);
-    // renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-
     SDL_SetRenderDrawColor( renderer, 0, 0, 0, 255 );
     SDL_RenderClear( renderer );
     
@@ -59,10 +71,10 @@ void draw(CPU& cpu) {
             
             if (pixel) {
                 SDL_Rect rect;
-                rect.h = scale;
-                rect.w = scale;
-                rect.x = x * scale;
-                rect.y = y * scale;
+                rect.h = SCALE;
+                rect.w = SCALE;
+                rect.x = x * SCALE;
+                rect.y = y * SCALE;
                 SDL_RenderFillRect(renderer, &rect);
             }
         }
@@ -105,7 +117,7 @@ void handleKeyEvent(SDL_Event event, CPU& cpu) {
 
         cpu.setKeypadValue(target, isDown);
 
-        if (cpu.getWaitingForKey()) { // FXOA
+        if (cpu.getWaitingForKey()) { // FXOA instruction
             cpu.writeToRegister(cpu.getKeyRegister(), target);
             cpu.setWaitingForKey(false);
             cpu.advancePC();

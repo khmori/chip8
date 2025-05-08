@@ -20,6 +20,7 @@ public:
     void emulateCycle();
     
     // helpers
+    void updateTimers();
     bool isKeyPressed();
     void writeToRegister(uint8_t index, uint8_t value);
     void advancePC();
@@ -35,8 +36,6 @@ public:
     void setWaitingForKey(bool value);
     bool getWaitingForKey();
     uint8_t getKeyRegister();
-
-    const int SCALE = 10;
 
 private: 
     uint8_t memory[4096];

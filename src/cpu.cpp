@@ -30,6 +30,8 @@ void CPU::initialize() {
     opcode = 0; // reset opcode
     I = 0;      // reset index register
     SP = 0;     // reset stack pointer
+    delayTimer = 0;
+    soundTimer = 0;
 
     // clear memory
     memset(memory, 0, sizeof(memory));
@@ -73,12 +75,12 @@ void CPU::emulateCycle() {
     uint16_t NNN = (opcode & 0x0FFF);       // second, third, fourth nibbles (12 bits)
 
     // check PC, opcode, SP, registers
-    // printf("%.4X %.4X %.2X ", PC, opcode, SP);
-    // for (int i = 0; i < 15; i++)
-    // {
-    //     printf("%.2X ", V[i]);
-    // }
-    // printf("\n");
+    printf("%.4X %.4X %.2X ", PC, opcode, SP);
+    for (int i = 0; i < 15; i++)
+    {
+        printf("%.2X ", V[i]);
+    }
+    printf("\n");
 
     switch (iCd) {
         case 0x0:
@@ -154,7 +156,7 @@ void CPU::emulateCycle() {
             PC += 2;
             break;
 
-        case 0x8:
+        case 0x8: // logical/arithmetic instructions
             switch (N) {
                 case 0x0:
                     V[X] = V[Y];
@@ -172,39 +174,44 @@ void CPU::emulateCycle() {
                     V[X] = V[X] ^ V[Y];
                     break;
 
-                case 0x4: {
-                    int sum = V[X] + V[Y];
-                    V[0xF] = sum > 255;
-                    V[X] = sum & 0xFF;
+                case 0x4: { // V[X] + V[Y]
+                    int result = V[X] + V[Y];
+                    V[X] = result;
+                    V[0xF] = result > 255;
                     break;
                 }
 
-                case 0x5: // V[X] - V[Y]
-                    V[0xF] = V[X] > V[Y];
-                    V[X] -= V[Y];
+                case 0x5: { // V[X] - V[Y]
+                    int result = V[X] - V[Y];
+                    bool flag = V[X] >= V[Y];
+                    V[X] = result;
+                    V[0xF] = flag;
                     break;
+                }
 
-                case 0x6:
+                case 0x6: {
+                    bool flag = (V[X] & 1);
                     V[X] = V[Y];
-                    V[0xF] = (V[X] & 1) == 1;
                     V[X] = V[X] >> 1;
+                    V[0xF] = flag;
                     break;
+                }
 
-                case 0x7: // V[Y] - V[X]
-                    V[0xF] = V[Y] > V[X];
-                    V[X] = V[Y] - V[X];
+                case 0x7: {
+                    int result = V[Y] - V[X];
+                    bool flag = V[Y] >= V[X];
+                    V[X] = result;
+                    V[0xF] = flag;
                     break;
-                
-                case 0xE:
+                }
+
+                case 0xE: {
+                    bool flag = (V[X] & 0x80) >> 7;
                     V[X] = V[Y];
-                    if ((V[X] & 1) == 1) {
-                        V[0xF] = 1;
-                    } else {
-                        V[0xF] = 0;
-                    }
-
                     V[X] = V[X] << 1;
+                    V[0xF] = flag;
                     break;
+                }
             }
             PC += 2;
             break;
@@ -298,46 +305,54 @@ void CPU::emulateCycle() {
             switch (NN) {
                 case 0x07:
                     V[X] = delayTimer;
+                    PC += 2;
                     break;
 
                 case 0x15:
                     delayTimer = V[X];
+                    PC += 2;
                     break;
                 
                 case 0x18:
                     soundTimer = V[X];
+                    PC += 2;
                     break;
 
                 case 0x1E:
                     I += V[X];
+                    PC += 2;
                     break;
 
                 case 0x0A:
-                    PC -= 2;
+                    // PC -= 2;
                     waitingForKey = true;
                     keyRegister = X;
                     break;
                 
                 case 0x29:
                     I = V[X] * 5;
+                    PC += 2;
                     break;
                 
                 case 0x33:
                     memory[I+2] = V[X] % 10;    
                     memory[I+1] = (V[X]/10) % 10;
                     memory[I] = V[X]/100;
+                    PC += 2;
                     break;
 
                 case 0x55:
                     for (int i=0; i<=X; i++) {
                         memory[I+i] = V[i];
                     }
+                    PC += 2;
                     break;
                 
                 case 0x65:
                     for (int i=0; i<=X; i++) {
                         V[i] = memory[I + i];
                     }
+                    PC += 2;
                     break;
             }
             break;
@@ -347,6 +362,16 @@ void CPU::emulateCycle() {
             break;
     }
 
+}
+
+void CPU::updateTimers() {
+    if (delayTimer > 0) {
+        delayTimer--;
+    }
+
+    if (soundTimer > 0) {
+        soundTimer--;
+    }
 }
 
 void CPU::loadROM(string romPath) {
