@@ -19,8 +19,12 @@ public:
     void loadROM(string romPath);
     void emulateCycle();
     
+    // helpers
     bool isKeyPressed();
+    void writeToRegister(uint8_t index, uint8_t value);
+    void advancePC();
 
+    // getters and setters
     uint8_t getDelayTimer();
     uint8_t getSoundTimer();
     void setKeypadValue(int target, int value);
@@ -28,8 +32,9 @@ public:
     bool getDisplayValue(int target);
     void setDrawFlag(bool value);
     bool getDrawFlag();
-    bool setWaitingForKey(bool value);
+    void setWaitingForKey(bool value);
     bool getWaitingForKey();
+    uint8_t getKeyRegister();
 
     const int SCALE = 10;
 
@@ -44,7 +49,8 @@ private:
     uint8_t delayTimer;
     uint8_t soundTimer;
     uint8_t V[16]; // variable registers 
-    
+    uint8_t keyRegister;
+
     bool display[64*32];
     bool keypad[16];
     bool drawFlag = false;

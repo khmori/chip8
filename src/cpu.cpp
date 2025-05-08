@@ -1,5 +1,5 @@
 #include "cpu.h"
-#include <iomanip>
+#include <cstring>
 #include <cstdlib>
 
 CPU::CPU() {
@@ -161,50 +161,38 @@ void CPU::emulateCycle() {
                     break;
 
                 case 0x1: // OR
-                    V[X] = V[X] || V[Y];
+                    V[X] = V[X] | V[Y];
                     break;
+
                 case 0x2: // AND
                     V[X] = V[X] & V[Y];
                     break;
-                case 0x3: // XOR
-                    V[X] = V[X] || V[Y] & !(V[X] & V[Y]); 
-                    break;
-                case 0x4:
-                    V[X] = V[X] + V[Y];
-                    if (V[X] > 255) {
-                        V[0xF] = 1;
-                    } else {
-                        V[0xF] = 0;
-                    }
-                    
-                    break;
-                case 0x5: // V[X] - V[Y]
-                    V[X] = V[X] - V[Y];
-                    if (V[X] > 0) {
-                        V[0xF] = 1;
-                    } else {
-                        V[0xF] = 0;
-                    }
 
+                case 0x3: // XOR
+                    V[X] = V[X] ^ V[Y];
                     break;
+
+                case 0x4: {
+                    int sum = V[X] + V[Y];
+                    V[0xF] = sum > 255;
+                    V[X] = sum & 0xFF;
+                    break;
+                }
+
+                case 0x5: // V[X] - V[Y]
+                    V[0xF] = V[X] > V[Y];
+                    V[X] -= V[Y];
+                    break;
+
                 case 0x6:
                     V[X] = V[Y];
-                    if ((V[X] & 1) == 1) {
-                        V[0xF] = 1;
-                    } else {
-                        V[0xF] = 0;
-                    }
-
+                    V[0xF] = (V[X] & 1) == 1;
                     V[X] = V[X] >> 1;
-
                     break;
+
                 case 0x7: // V[Y] - V[X]
-                    V[X] = V[X] - V[Y];
-                    if (V[X] > 0) {
-                        V[0xF] = 1;
-                    } else {
-                        V[0xF] = 0;
-                    }
+                    V[0xF] = V[Y] > V[X];
+                    V[X] = V[Y] - V[X];
                     break;
                 
                 case 0xE:
@@ -217,8 +205,10 @@ void CPU::emulateCycle() {
 
                     V[X] = V[X] << 1;
                     break;
-
             }
+            PC += 2;
+            break;
+            
 
         case 0x9:
             PC += 2;
@@ -238,8 +228,9 @@ void CPU::emulateCycle() {
             break;
 
         case 0xC: { 
-            int r = rand() % 101;
+            int r = rand() % 256;
             V[X] = r & NN;
+            PC += 2;
             break;
         }
 
@@ -324,9 +315,32 @@ void CPU::emulateCycle() {
                 case 0x0A:
                     PC -= 2;
                     waitingForKey = true;
+                    keyRegister = X;
+                    break;
+                
+                case 0x29:
+                    I = V[X] * 5;
+                    break;
+                
+                case 0x33:
+                    memory[I+2] = V[X] % 10;    
+                    memory[I+1] = (V[X]/10) % 10;
+                    memory[I] = V[X]/100;
+                    break;
 
+                case 0x55:
+                    for (int i=0; i<=X; i++) {
+                        memory[I+i] = V[i];
+                    }
+                    break;
+                
+                case 0x65:
+                    for (int i=0; i<=X; i++) {
+                        V[i] = memory[I + i];
+                    }
                     break;
             }
+            break;
 
         default:
             cout << "unknown opcode: 0x" << hex << opcode << endl;
@@ -359,6 +373,14 @@ bool CPU::isKeyPressed() {
     return false;
 }
 
+void CPU::writeToRegister(uint8_t index, uint8_t value) {
+    V[index] = value;
+}
+
+void CPU::advancePC() {
+    PC += 2;
+}
+
 uint8_t CPU::getDelayTimer() {
     return delayTimer;
 }
@@ -387,10 +409,14 @@ bool CPU::getDrawFlag() {
     return drawFlag;
 }
 
-bool CPU::setWaitingForKey(bool value) {
+void CPU::setWaitingForKey(bool value) {
     waitingForKey = value;
 }
 
 bool CPU::getWaitingForKey() {
     return waitingForKey;
+}
+
+uint8_t CPU::getKeyRegister() {
+    return keyRegister;
 }
