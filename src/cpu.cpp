@@ -44,6 +44,9 @@ void CPU::initialize() {
 
     // clear registers
     memset(V, 0, sizeof(V));
+
+    // clear keypad
+    memset(keypad, 0, sizeof(keypad));
     
     // load font into memory (starting at 0)
     for (int i = 0; i < sizeof(font); i++) {
@@ -85,13 +88,15 @@ void CPU::emulateCycle() {
     switch (iCd) {
         case 0x0:
             switch (opcode) {
-                case 0x00E0: // clear display
+                // 0x00E0: clear the display
+                case 0x00E0: 
                     memset(display, 0, sizeof(display));
                     drawFlag = true;
                     PC += 2;
                     break;
 
-                case 0x00EE: // return from subroutine
+                // 0x00EE: return from subroutine
+                case 0x00EE: 
                     if (SP > 0) {
                         SP--;
                         PC = stack[SP];
@@ -109,6 +114,7 @@ void CPU::emulateCycle() {
             }
             break;
 
+        // 0x1NNN: jump to NNN
         case 0x1: // jump to NNN
             PC = NNN;
             break;
@@ -132,6 +138,7 @@ void CPU::emulateCycle() {
             }
             break;
 
+
         case 0x4:
             PC += 2;
             if (V[X] != NN) {
@@ -146,17 +153,20 @@ void CPU::emulateCycle() {
             }
             break;
             
+        // set
         case 0x6:
             V[X] = NN;
             PC += 2;
             break;
 
+        // add
         case 0x7:
             V[X] += NN;
             PC += 2;
             break;
 
-        case 0x8: // logical/arithmetic instructions
+        // logical/arithmetic instructions
+        case 0x8: 
             switch (N) {
                 case 0x0:
                     V[X] = V[Y];
@@ -283,24 +293,30 @@ void CPU::emulateCycle() {
             break;
         }
 
+        // EXNN: keypad instructions
         case 0xE: 
             switch (NN) {
+                // EX9E: skip one instruction if key corresponding to V[X] is pressed
                 case 0x9E: {
                     if (keypad[V[X]]) {
                         PC += 2;
                     }
+                    PC += 2;
                     break;
                 }
                 
+                // EXA1: skip one instruction if key corresponding to V[X] is not pressed
                 case 0xA1: {
                     if (!keypad[V[X]]) {
                         PC += 2;
                     }
+                    PC += 2;
                     break;
                 }
             }
             break;
         
+        // timer instructions
         case 0xF:
             switch (NN) {
                 case 0x07:
@@ -323,6 +339,8 @@ void CPU::emulateCycle() {
                     PC += 2;
                     break;
 
+                // FX0A: get key
+                // stops executing instructions and waits for key input
                 case 0x0A:
                     // PC -= 2;
                     waitingForKey = true;
@@ -387,6 +405,9 @@ void CPU::loadROM(string romPath) {
 
     rom.close();
     cout << "loaded " << index - 0x200 << " bytes into memory\n";
+
+    // TESTING KEYPAD
+    // memory[0x1FF] = 2;
 }
 
 bool CPU::isKeyPressed() {

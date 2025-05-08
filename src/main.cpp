@@ -9,6 +9,24 @@ const int SCALE = 10;
 SDL_Window* window = NULL;
 SDL_Renderer* renderer = NULL;
 Uint32 lastTimerUpdate; // number of milliseconds since initialization
+uint8_t keymap[16] = {
+    SDLK_x,
+    SDLK_1,
+    SDLK_2,
+    SDLK_3,
+    SDLK_q,
+    SDLK_w,
+    SDLK_e,
+    SDLK_a,
+    SDLK_s,
+    SDLK_d,
+    SDLK_z,
+    SDLK_c,
+    SDLK_4,
+    SDLK_r,
+    SDLK_f,
+    SDLK_v,
+};
 
 void initSDL();
 void draw(CPU& cpu);
@@ -17,7 +35,7 @@ void handleKeyEvent(SDL_Event event, CPU& cpu);
 int main() {
     CPU cpu;
     cpu.initialize();
-    cpu.loadROM("../roms/4-flags.ch8");
+    cpu.loadROM("../roms/6-keypad.ch8");
 
     initSDL();
 
@@ -92,35 +110,17 @@ void handleKeyEvent(SDL_Event event, CPU& cpu) {
         bool isDown = (event.type == SDL_KEYDOWN);
         int target;
 
-        switch (event.key.keysym.sym) {
-            case SDLK_1: target = 0; break;
-            case SDLK_2: target = 1;break;
-            case SDLK_3: target = 2; break;
-            case SDLK_4: target = 3; break;
-            case SDLK_q: target = 4; break;
-            case SDLK_w: target = 5; break;
-            case SDLK_e: target = 6; break;
-            case SDLK_r: target = 7; break;
-            case SDLK_a: target = 8; break;
-            case SDLK_s: target = 9; break;
-            case SDLK_d: target = 10; break;
-            case SDLK_f: target = 11; break;
-            case SDLK_z: target = 12; break;
-            case SDLK_x: target = 13; break;
-            case SDLK_c: target = 14; break;
-            case SDLK_v: target = 15; break;
-            default:
-                cout << "unknown input: ";
-                cout << event.key.keysym.sym << endl;
-                break;
+        for (int i=0; i<16; i++) {
+            if (event.key.keysym.sym == keymap[i]) {
+                cpu.setKeypadValue(i, isDown);
+            }
         }
 
-        cpu.setKeypadValue(target, isDown);
-
-        if (cpu.getWaitingForKey()) { // FXOA instruction
+        if (cpu.getWaitingForKey() && event.type == SDL_KEYUP) { // FXOA instruction
             cpu.writeToRegister(cpu.getKeyRegister(), target);
             cpu.setWaitingForKey(false);
             cpu.advancePC();
+            cout << "key pressed; PC advanced" << endl;
         }
 
     }
